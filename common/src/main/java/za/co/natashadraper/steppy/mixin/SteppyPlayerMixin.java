@@ -58,6 +58,9 @@ public abstract class SteppyPlayerMixin {
     }
 
     @Unique
+    private boolean steppy$active = false;
+
+    @Unique
     private void steppy$disableSteppy() {
         var stepHeightAttribute = steppy$getStepHeightAttribute();
         assert stepHeightAttribute != null;
@@ -74,10 +77,18 @@ public abstract class SteppyPlayerMixin {
     @Inject(method = "move", at = @At("HEAD"))
     private void steppy(MovementType movementType, Vec3d movement, CallbackInfo ci) {
         if (!steppy$shouldEnableSteppy()) {
-            steppy$disableSteppy();
+            // Only reset step height once when transitioning from enabled to disabled.
+            // This prevents constantly overriding the step height (e.g. during sneaking),
+            // which would interfere with vanilla's own step height management for
+            // descending from non-full blocks.
+            if (steppy$active) {
+                steppy$disableSteppy();
+                steppy$active = false;
+            }
             return;
         }
         steppy$setSteppyHeight(SteppyConfig.get().stepHeight);
+        steppy$active = true;
     }
 
     @Inject(method = "shouldAutoJump", at = @At(value = "HEAD"), cancellable = true)
